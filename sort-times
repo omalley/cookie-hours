@@ -1,0 +1,2 @@
+#!/bin/bash
+cat "$@" | awk -F, -f parse.awk | sort
