@@ -49,7 +49,7 @@ dates = list()
 #Now read in the scanner files - one file at a time
 for file in scanfile:
     print ('Reading file', file)
-    with open(file, 'rb') as inputfile :
+    with open(file, 'rt') as inputfile :
         reader = csv.reader(inputfile, delimiter=',', quotechar='|')
         for row in reader:
             if len(row) > 0 and row[0].startswith('#') is False:
@@ -138,8 +138,8 @@ for i in range(len(names)):
         while end_k < len(times[i]) and times[i][k].date() == times[i][end_k].date() :
             end_k = end_k + 1
         # check for one entry on next date with time before 4.00am
-        if end_k < len(times[i]) and ( (times[i][end_k].date() - times[i][k].date()).days == 1 ) and (times[i][end_k].time() < datetime.time(04, 0, 0) ) :
-            print 'WARNING OVERNIGHT TIMESTAMP ADJUSTMENT FOR ', names[i], 'ON:', times[i][end_k]
+        if end_k < len(times[i]) and ( (times[i][end_k].date() - times[i][k].date()).days == 1 ) and (times[i][end_k].time() < datetime.time(4, 0, 0) ) :
+            print ('WARNING OVERNIGHT TIMESTAMP ADJUSTMENT FOR ', names[i], 'ON:', times[i][end_k])
             end_k = end_k + 1 #  timestamp past midnight but before 4.00am belongs to previous day          
         # scan for new date - to determin end_k
         # - now we have the beginning and ending index for a given date.
