@@ -49,8 +49,9 @@ class DayReport:
                                        len(self.ignored))))
       if len(self.scans) % 2 != 0:
          self.warn = True
-         warnings.append((name, date, ("Odd number of events (%d)" %
-                                       len(self.scans))))
+         msg = ("Odd number of events: " + 
+                ', '.join(map(lambda d: d.strftime('%H:%M'), self.scans)))
+         warnings.append((name, date, msg))
    def append(self, time):
       self.scans.append(time)
 
@@ -152,9 +153,8 @@ for name in names:
     days = students[name]
     if d in days:
       hours = days[d].hours()
-      warn = days[d].warn
       total += hours
-      sheet.write(row, col, hours, yellow_num if warn else format_num)
+      sheet.write(row, col, hours, yellow_num if days[d].warn else format_num)
   sheet.write(row, 1, total, green_num if total >= 100.0 else format_num)
 
 warn_sheet = workbook.add_worksheet('Warnings')
@@ -162,7 +162,7 @@ warn_sheet.write(0, 0, 'Name')
 warn_sheet.set_column(0, 0, 20)
 warn_sheet.write(0, 1, 'Date')
 warn_sheet.write(0, 2, 'Warning')
-warn_sheet.set_column(2, 2, 40)
+warn_sheet.set_column(2, 2, 60)
 row = 0
 for (name, date, msg) in warnings:
    row += 1
