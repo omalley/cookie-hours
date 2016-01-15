@@ -10,16 +10,22 @@ import os.path
 import csv
 import datetime
 import xlsxwriter
-from operator import itemgetter
+
+def parseDate(str):
+  return datetime.datetime.strptime(str, '%m/%d/%Y').date()
+
+# extract the date from a timestamp with times before 4am counting as previous
+# day.
+def adjustDate(ts):
+  return (ts - datetime.timedelta(0, 4 * 3600)).date()
 
 # default file names
 scanfile = list()
 outfile = 'timecard.xlsx'
-startdate = "01/01/2014"
-enddate = "06/01/2015"
-filecnt = 0
+startdate = parseDate("01/01/2016")
+enddate = parseDate("12/31/2016")
+minSeparation = 120
 
-#print ("Arguments passed:", len(sys.argv), str(sys.argv))
 if len(sys.argv) > 1 :      # arguments passed
     i = 1
     while i < len(sys.argv):
@@ -27,24 +33,65 @@ if len(sys.argv) > 1 :      # arguments passed
             outfile = sys.argv[i+1]
             i = i+2
         elif sys.argv[i] == '-s':
-            startdate = sys.argv[i+1]
+            startdate = parseDate(sys.argv[i+1])
             i = i+2
         elif sys.argv[i] == '-e':
-            enddate = sys.argv[i+1]          
+            enddate = parseDate(sys.argv[i+1])
             i = i+2
         else :
             scanfile.append(sys.argv[i])
             i = i+1 ;
-            filecnt = filecnt+1 ;
-print (filecnt, 'Input Files :', scanfile, 'Output: ', outfile)
 
-s_date = datetime.datetime.strptime(startdate, '%m/%d/%Y').date()
-e_date = datetime.datetime.strptime(enddate, '%m/%d/%Y').date()
+# map(name, map(date, list(datetime)))
+students = {}
 
-names = list()
-timecard = list()
-times = list()
-dates = list()
+# list(date)
+dates = []
+
+# list(tuple(string, date, string))
+warnings = []
+
+def calculateHours(times):
+  result = 0.0
+  i = 0
+  while i < len(times) - 1:
+    result += (times[i + 1] - times[i]).seconds / 3600.0
+    i += 2
+  return result
+
+class DayReport:
+   def __init__(self):
+      self.scans = []
+      self.ignored = []
+      self.warn = False
+   def fixUp(self, name, date):
+      self.scans.sort()
+      i = 0
+      while i < len(self.scans) - 1:
+         if (self.scans[i+1] - self.scans[i]).seconds < minSeparation:
+            self.ignored.append(self.scans[i])
+            del self.scans[i]
+         else:
+            i += 1
+      if len(self.ignored) > 0:
+         self.warn = True
+         warnings.append((name, date, ("%d near events ignored" %
+                                       len(self.ignored))))
+      if len(self.scans) % 2 != 0:
+         self.warn = True
+         warnings.append((name, date, ("Odd number of events (%d)" %
+                                       len(self.scans))))
+   def append(self, time):
+      self.scans.append(time)
+
+   def hours(self):
+     if len(self.scans) < 2:
+       return 0.0
+     elif len(self.scans) % 2 == 0:
+       return calculateHours(self.scans)
+     else:
+       return max(calculateHours(self.scans),
+                  calculateHours(self.scans[1:]))
 
 #Now read in the scanner files - one file at a time
 for file in scanfile:
@@ -52,136 +99,73 @@ for file in scanfile:
     with open(file, 'rt') as inputfile :
         reader = csv.reader(inputfile, delimiter=',', quotechar='|')
         for row in reader:
-            if len(row) > 0 and row[0].startswith('#') is False:
-                # print row
-                if row[0] not in names:
-                    names.append(row[0])
-                    timecard.append(dict())
-                    times.append(list())
-                index = names.index(row[0])
+            if len(row) > 0 and not row[0].startswith('#'):
                 d = datetime.datetime.strptime(row[3], '%m/%d/%Y')
                 t = datetime.datetime.strptime(row[2], '%H:%M:%S')
                 dt = datetime.datetime.combine(d.date(), t.time())
-                times[index].append(dt)
-                if row[3] not in timecard[index] :
-                    timecard[index][row[3]] = list()
-                timecard[index][row[3]].append(dt)
-                # put into master date list for the Col. headings list
-                if row[3] not in dates :
-                    dates.append(row[3])
+                day = adjustDate(dt)
+                if startdate <= day and day <= enddate:
+                   times = students.setdefault(row[0], {})
+                   times.setdefault(day, DayReport()).append(dt)
+                   if day not in dates :
+                      dates.append(day)
 
+dates.sort()
+for (name, entries) in students.items():
+  for (date, report) in entries.items():
+      report.fixUp(name, date)
 
-print ("Total: ", len(names), 'names', 'with ', len(dates), 'days attended')
+warnings.sort()
+names = sorted(students.keys())
+
+print ("Total: ", len(students), 'names', 'with ', len(dates), 'days attended')
 print ("Generating report from:", startdate, "to: ", enddate)
-#print debug section
-#for i in range(0, len(names)):
-#    print 'name:', names[i], 'has', len(times[i]), 'time entries'
-#    times[i].sort()
-#    for j in range(0, len(times[i])):
-#        print times[i][j].isoformat(' ')
 
 # Now prep the xlsx workbook
 workbook  = xlsxwriter.Workbook(outfile)
-sheet = workbook.add_worksheet('This Week')
+sheet = workbook.add_worksheet('Hours')
 format_date = workbook.add_format({'num_format': 'mm/dd/yy'})
-cell_format = workbook.add_format()
-cell_format.set_bg_color('red')
+green_num = workbook.add_format({'num_format':'0.000'})
+green_num.set_bg_color('green')
+yellow_num = workbook.add_format({'num_format':'0.000'})
+yellow_num.set_bg_color('yellow')
 format_num = workbook.add_format({'num_format':'0.000'})
-dates.sort()
+
 row = 0
-col = 0
-sheet.write(0, col, 'Name')
-col = col+1
-for j in range(len(dates)):
-    sheet.write(0, col, dates[j])
-    col = col+1
+sheet.write(row, 0, 'Name')
+sheet.write(row, 1, 'Total')
+col = 1
+for d in dates:
+  col += 1
+  sheet.write(row, col, d, format_date)
 
-# Now all the scanned files have been read into a giant list of lists
-# The main list - which is indexed by name has one list per name, and each item
-# in the list containts a date/time pair. - times[i]
-# For now - timcard[i][j] is a dictionary of times - which doesnt work to index over a day boundary
-# so we use times - where for each name you can just index the entire timestamp list
-# First sort the time data for each name and then
-# process by Looping through each names time data
-# for each day -
-for i in range(len(names)):
-    row = row + 1 # increment to next row in the sheet
-    col = 0
-    sheet.write(row, 0, names[i])
-    #print ('name:', names[i], 'has', len(times[i]), 'time entries')
-    #print times[i]
-    times[i].sort()
-    # take the sorted list of times and filter all stamps within 60 seconds of each other
-    k = 0
-    while k < (len(times[i])-1):
-        tdelta = times[i][k+1] - times[i][k]
-        if (tdelta.total_seconds() <= 60) :
-            print('Deleting Duplicated entry for ', names[i], 'at', times[i][k])
-            del times[i][k]
-        else :
-            k = k+1
-    #print ('name:', names[i], 'has', len(times[i]), 'time entries')
-    if len(times[i]) == 1 :
-         print ('WARNING! - ONLY ONE ENTRY FOR: ', names[i], ' ON: ', times[i][0])
-         print ('Manual processing needed')
-    #print times[i]
-    k = 0
-    while k < len(times[i])-1 :
-        curr_date = times[i][k].date() # current record date
-        # only for days in the daterange
-        j = curr_date.strftime('%m/%d/%Y')
-        if (curr_date < s_date or curr_date  > e_date ) :
-            #print 'Skipping date'
-            k = k+1
-            continue
-        end_k = k
-        while end_k < len(times[i]) and times[i][k].date() == times[i][end_k].date() :
-            end_k = end_k + 1
-        # check for one entry on next date with time before 4.00am
-        if end_k < len(times[i]) and ( (times[i][end_k].date() - times[i][k].date()).days == 1 ) and (times[i][end_k].time() < datetime.time(4, 0, 0) ) :
-            print ('WARNING OVERNIGHT TIMESTAMP ADJUSTMENT FOR ', names[i], 'ON:', times[i][end_k])
-            end_k = end_k + 1 #  timestamp past midnight but before 4.00am belongs to previous day          
-        # scan for new date - to determin end_k
-        # - now we have the beginning and ending index for a given date.
-        # Odd number of entries check here
-        total = 0
-        while k < end_k-1 :
-            tdelta = times[i][k+1] - times[i][k]
-            total += tdelta.total_seconds()
-            k = k+2
+for name in names:
+  total = 0.0
+  row = row + 1
+  col = 1
+  sheet.write(row, 0, name)
+  for d in dates:
+    col += 1
+    days = students[name]
+    if d in days:
+      hours = days[d].hours()
+      warn = days[d].warn
+    else:
+      hours = 0.0
+      warn = False
+    total += hours
+    sheet.write(row, col, hours, yellow_num if warn else format_num)
+  sheet.write(row, 1, total, green_num if total >= 100.0 else format_num)
 
-        # now check for singletons, two entry timestamps and one exit or one entry and two exits
-        # 30 minute is qualifier for entry exit dual stamps
-        #
-        if (end_k-k == 1 and total == 0) :
-            print ('WARNING! - TRUE SINGLE ENTRY ONLY FOR: ', names[i], ' ON: ', times[i][k])
-        elif (end_k-k == 1) :
-            # true odd entry means k, k-1 and k-2 are all valid indices
-            first_pair = times[i][k-1] - times[i][k-2]
-            second_pair = times[i][k] - times[i][k-1]
-            if first_pair.total_seconds() < 1800 or second_pair.total_seconds() < 1800 :
-                # just add the singleton time
-                print ('WARNING! - DUAL ENTRY TIMESTAMP FOR: ', names[i], ' ON: ', times[i][k-1])
-                print ('WARNING! - ADDING TIME FOR: ', names[i], ' AT: ', times[i][k])
-                total += second_pair.total_seconds()
-               
-        #print ('Time for : ', names[i], 'on :', j, 'is: ', (total/3600), 'hrs')
-
-        # now increment to a new day
-        k = end_k
-
-        # Now format this for the spread sheet - we are on the right row, we have to
-        # find the column for the date since not all girls work on all days
-        if j not in dates :
-            print ('FATAL ERROR: Time card entry not in master dates list!!!!!')
-            exit()
-        # we have a date entry - remember first column is the name
-        # j is the date in iso string format '%m/%d/%Y'
-        index = dates.index(j) + 1
-        if total > 0 :
-            sheet.write(row, index, (total/3600), format_num)
-        else :
-            sheet.write(row, index, 0, cell_format);
-        #print timecard[i][j]
+warn_sheet = workbook.add_worksheet('Warnings')
+warn_sheet.write(0, 0, 'Name')
+warn_sheet.write(0, 1, 'Date')
+warn_sheet.write(0, 2, 'Warning')
+row = 0
+for (name, date, msg) in warnings:
+   row += 1
+   warn_sheet.write(row, 0, name)
+   warn_sheet.write(row, 1, date, format_date)
+   warn_sheet.write(row, 2, msg)
 
 workbook.close()
