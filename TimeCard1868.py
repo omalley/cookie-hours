@@ -19,12 +19,56 @@ def parseDate(str):
 def adjustDate(ts):
   return (ts - datetime.timedelta(0, 4 * 3600)).date()
 
+def calculateHours(times):
+  result = 0.0
+  i = 0
+  while i < len(times) - 1:
+    result += (times[i + 1] - times[i]).seconds / 3600.0
+    i += 2
+  return result
+
+# Stores the scans of a single student on the same day
+class DayReport:
+   def __init__(self):
+      self.scans = []
+      self.ignored = []
+      self.warn = False
+
+   # after the data is loaded, fix up the data
+   def fixUp(self, name, date):
+      self.scans.sort()
+      i = 0
+      while i < len(self.scans) - 1:
+         if (self.scans[i+1] - self.scans[i]).seconds < minSeparation:
+            self.ignored.append(self.scans[i])
+            del self.scans[i]
+         else:
+            i += 1
+      if len(self.ignored) > 0:
+         warnings.append((name, date, ("%d near duplicate events ignored" %
+                                       len(self.ignored))))
+      if len(self.scans) % 2 != 0:
+         self.warn = True
+         warnings.append((name, date, ("Odd number of events (%d)" %
+                                       len(self.scans))))
+   def append(self, time):
+      self.scans.append(time)
+
+   def hours(self):
+     if len(self.scans) < 2:
+       return 0.0
+     elif len(self.scans) % 2 == 0:
+       return calculateHours(self.scans)
+     else:
+       return max(calculateHours(self.scans),
+                  calculateHours(self.scans[1:]))
+
 # default file names
 scanfile = list()
 outfile = 'timecard.xlsx'
 startdate = parseDate("01/01/2016")
 enddate = parseDate("12/31/2016")
-minSeparation = 120
+minSeparation = 120 # ignore events less than 2 minutes apart
 
 if len(sys.argv) > 1 :      # arguments passed
     i = 1
@@ -42,7 +86,7 @@ if len(sys.argv) > 1 :      # arguments passed
             scanfile.append(sys.argv[i])
             i = i+1 ;
 
-# map(name, map(date, list(datetime)))
+# map(name, map(date, DayReport))
 students = {}
 
 # list(date)
@@ -50,48 +94,6 @@ dates = []
 
 # list(tuple(string, date, string))
 warnings = []
-
-def calculateHours(times):
-  result = 0.0
-  i = 0
-  while i < len(times) - 1:
-    result += (times[i + 1] - times[i]).seconds / 3600.0
-    i += 2
-  return result
-
-class DayReport:
-   def __init__(self):
-      self.scans = []
-      self.ignored = []
-      self.warn = False
-   def fixUp(self, name, date):
-      self.scans.sort()
-      i = 0
-      while i < len(self.scans) - 1:
-         if (self.scans[i+1] - self.scans[i]).seconds < minSeparation:
-            self.ignored.append(self.scans[i])
-            del self.scans[i]
-         else:
-            i += 1
-      if len(self.ignored) > 0:
-         self.warn = True
-         warnings.append((name, date, ("%d near events ignored" %
-                                       len(self.ignored))))
-      if len(self.scans) % 2 != 0:
-         self.warn = True
-         warnings.append((name, date, ("Odd number of events (%d)" %
-                                       len(self.scans))))
-   def append(self, time):
-      self.scans.append(time)
-
-   def hours(self):
-     if len(self.scans) < 2:
-       return 0.0
-     elif len(self.scans) % 2 == 0:
-       return calculateHours(self.scans)
-     else:
-       return max(calculateHours(self.scans),
-                  calculateHours(self.scans[1:]))
 
 #Now read in the scanner files - one file at a time
 for file in scanfile:
