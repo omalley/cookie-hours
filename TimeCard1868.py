@@ -45,13 +45,13 @@ class DayReport:
          else:
             i += 1
       if len(self.ignored) > 0:
-         warnings.append((name, date, ("%d near duplicate events ignored" %
+         warnings.append((date, name, ("%d near duplicate events ignored" %
                                        len(self.ignored))))
       if len(self.scans) % 2 != 0:
-         self.warn = True
+         self.warn = len(self.scans) == 1
          msg = ("Odd number of events: " + 
                 ', '.join(map(lambda d: d.strftime('%H:%M'), self.scans)))
-         warnings.append((name, date, msg))
+         warnings.append((date, name, msg))
    def append(self, time):
       self.scans.append(time)
 
@@ -93,7 +93,7 @@ students = {}
 # list(date)
 dates = []
 
-# list(tuple(string, date, string))
+# list(tuple(date, string, string))
 warnings = []
 
 #Now read in the scanner files - one file at a time
@@ -113,7 +113,7 @@ for file in scanfile:
                    if day not in dates :
                       dates.append(day)
 
-dates.sort()
+dates.sort(reverse=True)
 for (name, entries) in students.items():
   for (date, report) in entries.items():
       report.fixUp(name, date)
@@ -128,8 +128,11 @@ print ("Generating report from:", startdate, "to: ", enddate)
 workbook  = xlsxwriter.Workbook(outfile)
 sheet = workbook.add_worksheet('Hours')
 format_date = workbook.add_format({'num_format': 'mm/dd/yy'})
-green_num = workbook.add_format({'num_format':'0.000'})
-green_num.set_bg_color('green')
+green_total = workbook.add_format({'num_format':'0.000'})
+green_total.set_bold()
+green_total.set_bg_color('green')
+black_total = workbook.add_format({'num_format':'0.000'})
+black_total.set_bold()
 yellow_num = workbook.add_format({'num_format':'0.000'})
 yellow_num.set_bg_color('yellow')
 format_num = workbook.add_format({'num_format':'0.000'})
@@ -155,19 +158,19 @@ for name in names:
       hours = days[d].hours()
       total += hours
       sheet.write(row, col, hours, yellow_num if days[d].warn else format_num)
-  sheet.write(row, 1, total, green_num if total >= 100.0 else format_num)
+  sheet.write(row, 1, total, green_total if total >= 100.0 else black_total)
 
 warn_sheet = workbook.add_worksheet('Warnings')
-warn_sheet.write(0, 0, 'Name')
-warn_sheet.set_column(0, 0, 20)
-warn_sheet.write(0, 1, 'Date')
+warn_sheet.write(0, 0, 'Date')
+warn_sheet.write(0, 1, 'Name')
+warn_sheet.set_column(1, 1, 20)
 warn_sheet.write(0, 2, 'Warning')
 warn_sheet.set_column(2, 2, 60)
 row = 0
-for (name, date, msg) in warnings:
+for (date, name, msg) in warnings:
    row += 1
-   warn_sheet.write(row, 0, name)
-   warn_sheet.write(row, 1, date, format_date)
+   warn_sheet.write(row, 0, date, format_date)
+   warn_sheet.write(row, 1, name)
    warn_sheet.write(row, 2, msg)
 
 workbook.close()
