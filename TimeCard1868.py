@@ -35,23 +35,24 @@ class DayReport:
       self.warn = False
 
    # after the data is loaded, fix up the data
-   def fixUp(self, name, date):
+   def fixUp(self, name, date, track):
       self.scans.sort()
       i = 0
       while i < len(self.scans) - 1:
-         if (self.scans[i+1] - self.scans[i]).seconds < minSeparation:
+         if (self.scans[i+1] - self.scans[i]).seconds < min_separation:
             self.ignored.append(self.scans[i])
             del self.scans[i]
          else:
             i += 1
       if len(self.ignored) > 0:
-         warnings.append((date, name, ("%d near duplicate events ignored" %
-                                       len(self.ignored))))
+         warnings.append((date, track, name, 
+                          ("%d near duplicate events ignored" %
+                           len(self.ignored))))
       if len(self.scans) % 2 != 0:
          self.warn = len(self.scans) == 1
          msg = ("Odd number of events: " + 
                 ', '.join(map(lambda d: d.strftime('%H:%M'), self.scans)))
-         warnings.append((date, name, msg))
+         warnings.append((date, track, name, msg))
    def append(self, time):
       self.scans.append(time)
 
@@ -64,12 +65,40 @@ class DayReport:
        return max(calculateHours(self.scans),
                   calculateHours(self.scans[1:]))
 
-# default file names
+def buildTimesheet(sheet, track, required_hours):
+  row = 0
+  sheet.write(row, 0, 'Name')
+  sheet.set_column(0, 0, 20)
+  sheet.write(row, 1, 'Total')
+  col = 1
+  for d in dates:
+    col += 1
+    sheet.write(row, col, d, format_date)
+
+  for name in names:
+    total = 0.0
+    row = row + 1
+    col = 1
+    sheet.write(row, 0, name)
+    for d in dates:
+      col += 1
+      if name in track:
+        days = track[name]
+        if d in days:
+          hours = days[d].hours()
+          total += hours
+          sheet.write(row, col, hours,
+                      yellow_num if days[d].warn else format_num)
+    sheet.write(row, 1, total,
+                green_total if total >= required_hours else black_total)
+
+# default parameters
 scanfile = list()
 outfile = 'timecard.xlsx'
 startdate = parseDate("01/01/2016")
 enddate = parseDate("12/31/2016")
-minSeparation = 120 # ignore events less than 2 minutes apart
+min_separation = 120 # ignore events less than 2 minutes apart
+business_scanner = "105059"
 
 if len(sys.argv) > 1 :      # arguments passed
     i = 1
@@ -88,12 +117,13 @@ if len(sys.argv) > 1 :      # arguments passed
             i = i+1 ;
 
 # map(name, map(date, DayReport))
-students = {}
+technical = {}
+business = {}
 
 # list(date)
 dates = []
 
-# list(tuple(date, string, string))
+# list(tuple(date, track, name, message))
 warnings = []
 
 #Now read in the scanner files - one file at a time
@@ -108,25 +138,33 @@ for file in scanfile:
                 dt = datetime.datetime.combine(d.date(), t.time())
                 day = adjustDate(dt)
                 if startdate <= day and day <= enddate:
-                   times = students.setdefault(row[0], {})
-                   times.setdefault(day, DayReport()).append(dt)
-                   if day not in dates :
-                      dates.append(day)
+                  if row[1] == business_scanner:
+                    group = business
+                  else:
+                    group = technical
+                  times = group.setdefault(row[0], {})
+                  times.setdefault(day, DayReport()).append(dt)
+                  if day not in dates :
+                    dates.append(day)
 
 dates.sort(reverse=True)
-for (name, entries) in students.items():
-  for (date, report) in entries.items():
-      report.fixUp(name, date)
+for track in [technical, business]:
+  for (name, entries) in track.items():
+    for (date, report) in entries.items():
+      report.fixUp(name, date,
+                   "technical" if track == technical else "business")
 
 warnings.sort()
-names = sorted(students.keys())
+names = sorted(set(list(technical.keys()) + 
+                   list(business.keys())))
 
-print ("Total: ", len(students), 'names', 'with ', len(dates), 'days attended')
+print ("Total: ", len(names), 'names', 'with ', len(dates), 'days attended')
 print ("Generating report from:", startdate, "to: ", enddate)
 
 # Now prep the xlsx workbook
 workbook  = xlsxwriter.Workbook(outfile)
-sheet = workbook.add_worksheet('Hours')
+technical_sheet = workbook.add_worksheet('Technical')
+business_sheet = workbook.add_worksheet('Business')
 format_date = workbook.add_format({'num_format': 'mm/dd/yy'})
 green_total = workbook.add_format({'num_format':'0.000'})
 green_total.set_bold()
@@ -137,40 +175,22 @@ yellow_num = workbook.add_format({'num_format':'0.000'})
 yellow_num.set_bg_color('yellow')
 format_num = workbook.add_format({'num_format':'0.000'})
 
-row = 0
-sheet.write(row, 0, 'Name')
-sheet.set_column(0, 0, 20)
-sheet.write(row, 1, 'Total')
-col = 1
-for d in dates:
-  col += 1
-  sheet.write(row, col, d, format_date)
-
-for name in names:
-  total = 0.0
-  row = row + 1
-  col = 1
-  sheet.write(row, 0, name)
-  for d in dates:
-    col += 1
-    days = students[name]
-    if d in days:
-      hours = days[d].hours()
-      total += hours
-      sheet.write(row, col, hours, yellow_num if days[d].warn else format_num)
-  sheet.write(row, 1, total, green_total if total >= 100.0 else black_total)
+buildTimesheet(technical_sheet, technical, 100.0)
+buildTimesheet(business_sheet, business, 10.0)
 
 warn_sheet = workbook.add_worksheet('Warnings')
 warn_sheet.write(0, 0, 'Date')
-warn_sheet.write(0, 1, 'Name')
-warn_sheet.set_column(1, 1, 20)
-warn_sheet.write(0, 2, 'Warning')
-warn_sheet.set_column(2, 2, 60)
+warn_sheet.write(0, 1, 'Track')
+warn_sheet.write(0, 2, 'Name')
+warn_sheet.set_column(2, 2, 20)
+warn_sheet.write(0, 3, 'Warning')
+warn_sheet.set_column(3, 3, 60)
 row = 0
-for (date, name, msg) in warnings:
+for (date, track, name, msg) in warnings:
    row += 1
    warn_sheet.write(row, 0, date, format_date)
-   warn_sheet.write(row, 1, name)
-   warn_sheet.write(row, 2, msg)
+   warn_sheet.write(row, 1, track)
+   warn_sheet.write(row, 2, name)
+   warn_sheet.write(row, 3, msg)
 
 workbook.close()
