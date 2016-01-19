@@ -65,13 +65,23 @@ class DayReport:
        return max(calculateHours(self.scans),
                   calculateHours(self.scans[1:]))
 
-def buildTimesheet(sheet, track, required_hours):
+class Track:
+  def __init__(self, name, required_hours):
+    self.name = name
+    self.required_hours = required_hours
+    # map(name, map(date, DayReport))
+    self.times = {}
+    # list(date)
+    self.dates = []
+
+def buildTimesheet(workbook, track):
+  sheet = workbook.add_worksheet(track.name)
   row = 0
   sheet.write(row, 0, 'Name')
   sheet.set_column(0, 0, 20)
   sheet.write(row, 1, 'Total')
   col = 1
-  for d in dates:
+  for d in track.dates:
     col += 1
     sheet.write(row, col, d, format_date)
 
@@ -80,17 +90,15 @@ def buildTimesheet(sheet, track, required_hours):
     row = row + 1
     col = 1
     sheet.write(row, 0, name)
-    for d in dates:
+    for d in track.dates:
       col += 1
-      if name in track:
-        days = track[name]
-        if d in days:
-          hours = days[d].hours()
-          total += hours
-          sheet.write(row, col, hours,
-                      yellow_num if days[d].warn else format_num)
+      if name in track.times and d in track.times[name]:
+        day = track.times[name][d]
+        hours = day.hours()
+        total += hours
+        sheet.write(row, col, hours, yellow_num if day.warn else format_num)
     sheet.write(row, 1, total,
-                green_total if total >= required_hours else black_total)
+                green_total if total >= track.required_hours else black_total)
 
 # default parameters
 scanfile = list()
@@ -114,14 +122,10 @@ if len(sys.argv) > 1 :      # arguments passed
             i = i+2
         else :
             scanfile.append(sys.argv[i])
-            i = i+1 ;
+            i = i+1
 
-# map(name, map(date, DayReport))
-technical = {}
-business = {}
-
-# list(date)
-dates = []
+tech_track = Track("Technical", 100.0)
+business_track = Track("Business", 10.0)
 
 # list(tuple(date, track, name, message))
 warnings = []
@@ -139,32 +143,30 @@ for file in scanfile:
                 day = adjustDate(dt)
                 if startdate <= day and day <= enddate:
                   if row[1] == business_scanner:
-                    group = business
+                    track = business_track
                   else:
-                    group = technical
-                  times = group.setdefault(row[0], {})
+                    track = tech_track
+                  times = track.times.setdefault(row[0], {})
                   times.setdefault(day, DayReport()).append(dt)
-                  if day not in dates :
-                    dates.append(day)
+                  if day not in track.dates :
+                    track.dates.append(day)
 
-dates.sort(reverse=True)
-for track in [technical, business]:
-  for (name, entries) in track.items():
+for track in [tech_track, business_track]:
+  track.dates.sort(reverse=True)
+  for (name, entries) in track.times.items():
     for (date, report) in entries.items():
-      report.fixUp(name, date,
-                   "technical" if track == technical else "business")
+      report.fixUp(name, date, track.name)
 
 warnings.sort()
-names = sorted(set(list(technical.keys()) + 
-                   list(business.keys())))
+names = sorted(set(list(tech_track.times.keys()) + 
+                   list(business_track.times.keys())))
 
-print ("Total: ", len(names), 'names', 'with ', len(dates), 'days attended')
+print ("Total: ", len(names), 'names', 'with ', len(tech_track.dates),
+       ' technical and ', len(business_track.dates), 'business days')
 print ("Generating report from:", startdate, "to: ", enddate)
 
 # Now prep the xlsx workbook
 workbook  = xlsxwriter.Workbook(outfile)
-technical_sheet = workbook.add_worksheet('Technical')
-business_sheet = workbook.add_worksheet('Business')
 format_date = workbook.add_format({'num_format': 'mm/dd/yy'})
 green_total = workbook.add_format({'num_format':'0.000'})
 green_total.set_bold()
@@ -175,8 +177,8 @@ yellow_num = workbook.add_format({'num_format':'0.000'})
 yellow_num.set_bg_color('yellow')
 format_num = workbook.add_format({'num_format':'0.000'})
 
-buildTimesheet(technical_sheet, technical, 100.0)
-buildTimesheet(business_sheet, business, 10.0)
+buildTimesheet(workbook, tech_track)
+buildTimesheet(workbook, business_track)
 
 warn_sheet = workbook.add_worksheet('Warnings')
 warn_sheet.write(0, 0, 'Date')
