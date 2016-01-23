@@ -73,6 +73,8 @@ class Track:
     self.times = {}
     # list(date)
     self.dates = []
+    # map(name, hours)
+    self.total = {}
 
 def buildTimesheet(workbook, track):
   sheet = workbook.add_worksheet(track.name)
@@ -97,6 +99,7 @@ def buildTimesheet(workbook, track):
         hours = day.hours()
         total += hours
         sheet.write(row, col, hours, yellow_num if day.warn else format_num)
+    track.total[name] = total
     sheet.write(row, 1, total,
                 green_total if total >= track.required_hours else black_total)
 
@@ -124,7 +127,7 @@ if len(sys.argv) > 1 :      # arguments passed
             scanfile.append(sys.argv[i])
             i = i+1
 
-tech_track = Track("Technical", 100.0)
+tech_track = Track("Technical", 90.0)
 business_track = Track("Business", 10.0)
 
 # list(tuple(date, track, name, message))
@@ -168,17 +171,37 @@ print ("Generating report from:", startdate, "to: ", enddate)
 # Now prep the xlsx workbook
 workbook  = xlsxwriter.Workbook(outfile)
 format_date = workbook.add_format({'num_format': 'mm/dd/yy'})
-green_total = workbook.add_format({'num_format':'0.000'})
+green_total = workbook.add_format({'num_format':'0.00'})
 green_total.set_bold()
 green_total.set_bg_color('green')
-black_total = workbook.add_format({'num_format':'0.000'})
+black_total = workbook.add_format({'num_format':'0.00'})
 black_total.set_bold()
-yellow_num = workbook.add_format({'num_format':'0.000'})
+yellow_num = workbook.add_format({'num_format':'0.00'})
 yellow_num.set_bg_color('yellow')
-format_num = workbook.add_format({'num_format':'0.000'})
+format_num = workbook.add_format({'num_format':'0.00'})
 
 buildTimesheet(workbook, tech_track)
 buildTimesheet(workbook, business_track)
+
+total_sheet = workbook.add_worksheet('Totals')
+total_sheet.write(0, 0, 'Name')
+total_sheet.set_column(0, 0, 20)
+total_sheet.write(0, 1, 'Technical Hours')
+total_sheet.set_column(1, 3, 15)
+total_sheet.write(0, 2, 'Business Hours')
+total_sheet.write(0, 3, 'Total Hours')
+row = 0
+for name in names:
+  row += 1
+  total_sheet.write(row, 0, name)
+  tech_total = tech_track.total.get(name, 0.0)
+  business_total = business_track.total.get(name, 0.0)
+  overall_format = green_total if tech_total + business_total >= 100 else black_total
+  total_sheet.write(row, 1, tech_total, overall_format)
+  total_sheet.write(row, 2, business_total,
+                    green_total if business_total >= 10 else black_total)
+  total_sheet.write(row, 3, tech_total + business_total,
+                    overall_format)
 
 warn_sheet = workbook.add_worksheet('Warnings')
 warn_sheet.write(0, 0, 'Date')
