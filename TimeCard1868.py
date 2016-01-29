@@ -75,6 +75,8 @@ class Track:
     self.dates = []
     # map(name, hours)
     self.total = {}
+    # map(week, hours)
+    self.byWeek = {}
 
 def buildTimesheet(workbook, track):
   sheet = workbook.add_worksheet(track.name)
@@ -159,6 +161,8 @@ for track in [tech_track, business_track]:
   for (name, entries) in track.times.items():
     for (date, report) in entries.items():
       report.fixUp(name, date, track.name)
+      week = int(date.strftime('%U'))
+      track.byWeek[week] = track.byWeek.get(week, 0) + report.hours()
 
 warnings.sort()
 names = sorted(set(list(tech_track.times.keys()) + 
@@ -196,12 +200,23 @@ for name in names:
   total_sheet.write(row, 0, name)
   tech_total = tech_track.total.get(name, 0.0)
   business_total = business_track.total.get(name, 0.0)
-  overall_format = green_total if tech_total + business_total >= 100 else black_total
+  overall_format = (green_total if tech_total + business_total >= 100
+                    else black_total)
   total_sheet.write(row, 1, tech_total, overall_format)
   total_sheet.write(row, 2, business_total,
                     green_total if business_total >= 10 else black_total)
   total_sheet.write(row, 3, tech_total + business_total,
                     overall_format)
+row += 5
+for week in sorted(set(list(tech_track.byWeek.keys()) +
+                       list(business_track.byWeek.keys()))):
+  row += 1
+  total_sheet.write(row, 0, 'Week %d' % week)
+  tech = tech_track.byWeek.get(week, 0)
+  business = business_track.byWeek.get(week, 0)
+  total_sheet.write(row, 1, tech, black_total)
+  total_sheet.write(row, 2, business, black_total)
+  total_sheet.write(row, 3, tech + business, black_total)
 
 warn_sheet = workbook.add_worksheet('Warnings')
 warn_sheet.write(0, 0, 'Date')
