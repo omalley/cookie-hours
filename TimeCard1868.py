@@ -207,9 +207,11 @@ for name in names:
                     green_total if business_total >= 10 else black_total)
   total_sheet.write(row, 3, tech_total + business_total,
                     overall_format)
+# print out the breakdown of hours per week
 row += 5
-for week in sorted(set(list(tech_track.byWeek.keys()) +
-                       list(business_track.byWeek.keys()))):
+weeks = sorted(set(list(tech_track.byWeek.keys()) +
+                   list(business_track.byWeek.keys())))
+for week in weeks:
   row += 1
   total_sheet.write(row, 0, 'Week %d' % week)
   tech = tech_track.byWeek.get(week, 0)
@@ -217,6 +219,15 @@ for week in sorted(set(list(tech_track.byWeek.keys()) +
   total_sheet.write(row, 1, tech, black_total)
   total_sheet.write(row, 2, business, black_total)
   total_sheet.write(row, 3, tech + business, black_total)
+row += 1
+total_sheet.write(row, 0, 'Total')
+columnNames = "ABCD"
+for col in range(1, 4):
+  total_sheet.write(row, col,
+                    '=SUM(%s%d:%s%d)' % (columnNames[col],
+                                         row - len(weeks) + 1,
+                                         columnNames[col], row),
+                    black_total)
 
 warn_sheet = workbook.add_worksheet('Warnings')
 warn_sheet.write(0, 0, 'Date')
