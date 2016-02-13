@@ -45,14 +45,15 @@ class DayReport:
          else:
             i += 1
       if len(self.ignored) > 0:
-         warnings.append((date, track, name, 
+         warnings.append(('info', name, date, track,
                           ("%d near duplicate events ignored" %
                            len(self.ignored))))
       if len(self.scans) % 2 != 0:
          self.warn = len(self.scans) == 1
          msg = ("Odd number of events: " + 
                 ', '.join(map(lambda d: d.strftime('%H:%M'), self.scans)))
-         warnings.append((date, track, name, msg))
+         warnings.append(('ERR' if self.warn else 'WARN',
+                          name, date, track, msg))
    def append(self, time):
       self.scans.append(time)
 
@@ -230,18 +231,20 @@ for col in range(1, 4):
                     black_total)
 
 warn_sheet = workbook.add_worksheet('Warnings')
-warn_sheet.write(0, 0, 'Date')
-warn_sheet.write(0, 1, 'Track')
-warn_sheet.write(0, 2, 'Name')
-warn_sheet.set_column(2, 2, 20)
-warn_sheet.write(0, 3, 'Warning')
-warn_sheet.set_column(3, 3, 60)
+warn_sheet.write(0, 0, 'Level')
+warn_sheet.write(0, 1, 'Name')
+warn_sheet.set_column(1, 1, 20)
+warn_sheet.write(0, 2, 'Date')
+warn_sheet.write(0, 3, 'Track')
+warn_sheet.write(0, 4, 'Warning')
+warn_sheet.set_column(4, 4, 60)
 row = 0
-for (date, track, name, msg) in warnings:
+for (level, name, date, track, msg) in warnings:
    row += 1
-   warn_sheet.write(row, 0, date, format_date)
-   warn_sheet.write(row, 1, track)
-   warn_sheet.write(row, 2, name)
-   warn_sheet.write(row, 3, msg)
+   warn_sheet.write(row, 0, level)
+   warn_sheet.write(row, 1, name)
+   warn_sheet.write(row, 2, date, format_date)
+   warn_sheet.write(row, 3, track)
+   warn_sheet.write(row, 4, msg)
 
 workbook.close()
