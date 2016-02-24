@@ -111,6 +111,7 @@ scanfile = list()
 outfile = 'timecard.xlsx'
 startdate = parseDate("01/01/2016")
 enddate = parseDate("12/31/2016")
+bagdate = parseDate("02/23/2016")
 min_separation = 120 # ignore events less than 2 minutes apart
 business_scanner = "105059"
 
@@ -132,6 +133,7 @@ if len(sys.argv) > 1 :      # arguments passed
 
 tech_track = Track("Technical", 90.0)
 business_track = Track("Business", 10.0)
+post_bag_track = Track("Post-Bag", 72.0)
 
 # list(tuple(date, track, name, message))
 warnings = []
@@ -143,12 +145,14 @@ for file in scanfile:
         reader = csv.reader(inputfile, delimiter=',', quotechar='|')
         for row in reader:
             if len(row) > 0 and not row[0].startswith('#'):
-                d = datetime.datetime.strptime(row[3], '%m/%d/%Y')
+                d = parseDate(row[3])
                 t = datetime.datetime.strptime(row[2], '%H:%M:%S')
-                dt = datetime.datetime.combine(d.date(), t.time())
+                dt = datetime.datetime.combine(d, t.time())
                 day = adjustDate(dt)
                 if startdate <= day and day <= enddate:
-                  if row[1] == business_scanner:
+                  if day > bagdate:
+                    track = post_bag_track
+                  elif row[1] == business_scanner:
                     track = business_track
                   else:
                     track = tech_track
@@ -157,7 +161,7 @@ for file in scanfile:
                   if day not in track.dates :
                     track.dates.append(day)
 
-for track in [tech_track, business_track]:
+for track in [tech_track, business_track, post_bag_track]:
   track.dates.sort(reverse=True)
   for (name, entries) in track.times.items():
     for (date, report) in entries.items():
@@ -167,10 +171,16 @@ for track in [tech_track, business_track]:
 
 warnings.sort()
 names = sorted(set(list(tech_track.times.keys()) + 
-                   list(business_track.times.keys())))
+                   list(business_track.times.keys()) +
+                   list(post_bag_track.times.keys())))
+if len(post_bag_track.dates) > 0:
+  post_bag_days = (post_bag_track.dates[0] - bagdate).days
+else:
+  post_bag_days = 0
 
-print ("Total: ", len(names), 'names', 'with ', len(tech_track.dates),
-       ' technical and ', len(business_track.dates), 'business days')
+print ("Total:", len(names), 'names with', len(tech_track.dates),
+       'technical,', len(business_track.dates), 'business, and',
+       len(post_bag_track.dates), 'post-bag days')
 print ("Generating report from:", startdate, "to: ", enddate)
 
 # Now prep the xlsx workbook
@@ -187,14 +197,17 @@ format_num = workbook.add_format({'num_format':'0.00'})
 
 buildTimesheet(workbook, tech_track)
 buildTimesheet(workbook, business_track)
+buildTimesheet(workbook, post_bag_track)
 
 total_sheet = workbook.add_worksheet('Totals')
 total_sheet.write(0, 0, 'Name')
 total_sheet.set_column(0, 0, 20)
 total_sheet.write(0, 1, 'Technical Hours')
-total_sheet.set_column(1, 3, 15)
+total_sheet.set_column(1, 5, 15)
 total_sheet.write(0, 2, 'Business Hours')
 total_sheet.write(0, 3, 'Total Hours')
+total_sheet.write(0, 4, 'Post-Bag Hours')
+total_sheet.write(0, 5, 'Post-Bag/Week')
 row = 0
 for name in names:
   row += 1
@@ -206,8 +219,16 @@ for name in names:
   total_sheet.write(row, 1, tech_total, overall_format)
   total_sheet.write(row, 2, business_total,
                     green_total if business_total >= 10 else black_total)
-  total_sheet.write(row, 3, tech_total + business_total,
-                    overall_format)
+  total_sheet.write(row, 3, tech_total + business_total, overall_format)
+  post_bag_total = post_bag_track.total.get(name, 0.0)
+  if post_bag_days > 0:
+    post_bag_week = post_bag_total * 7 / post_bag_days
+  else:
+    post_bag_week = 0
+  post_bag_style = green_total if post_bag_week >= 8 else black_total
+  total_sheet.write(row, 4, post_bag_total, post_bag_style)
+  total_sheet.write(row, 5, post_bag_week, post_bag_style)
+
 # print out the breakdown of hours per week
 row += 5
 weeks = sorted(set(list(tech_track.byWeek.keys()) +
@@ -217,13 +238,15 @@ for week in weeks:
   total_sheet.write(row, 0, 'Week %d' % week)
   tech = tech_track.byWeek.get(week, 0)
   business = business_track.byWeek.get(week, 0)
+  post_bag = post_bag_track.byWeek.get(week, 0)
   total_sheet.write(row, 1, tech, black_total)
   total_sheet.write(row, 2, business, black_total)
   total_sheet.write(row, 3, tech + business, black_total)
+  total_sheet.write(row, 4, post_bag, black_total)
 row += 1
 total_sheet.write(row, 0, 'Total')
-columnNames = "ABCD"
-for col in range(1, 4):
+columnNames = "ABCDE"
+for col in range(1, 5):
   total_sheet.write(row, col,
                     '=SUM(%s%d:%s%d)' % (columnNames[col],
                                          row - len(weeks) + 1,
