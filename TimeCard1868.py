@@ -232,7 +232,8 @@ for name in names:
 # print out the breakdown of hours per week
 row += 5
 weeks = sorted(set(list(tech_track.byWeek.keys()) +
-                   list(business_track.byWeek.keys())))
+                   list(business_track.byWeek.keys()) +
+                   list(post_bag_track.byWeek.keys())))
 for week in weeks:
   row += 1
   total_sheet.write(row, 0, 'Week %d' % week)
