@@ -133,7 +133,7 @@ if len(sys.argv) > 1 :      # arguments passed
 
 tech_track = Track("Technical", 90.0)
 business_track = Track("Business", 10.0)
-post_bag_track = Track("Post-Bag", 72.0)
+post_bag_track = Track("Post-Bag", 32.0)
 
 # list(tuple(date, track, name, message))
 warnings = []
@@ -225,7 +225,7 @@ for name in names:
     post_bag_week = post_bag_total * 7 / post_bag_days
   else:
     post_bag_week = 0
-  post_bag_style = green_total if post_bag_week >= 8 else black_total
+  post_bag_style = green_total if post_bag_total >= 32 else black_total
   total_sheet.write(row, 4, post_bag_total, post_bag_style)
   total_sheet.write(row, 5, post_bag_week, post_bag_style)
 
