@@ -27,6 +27,11 @@ def calculateHours(times):
     i += 2
   return result
 
+# rearrange the name so that it sorts by last name
+def mangleName(name):
+  [first, last] = name.rsplit(None, 1)
+  return "%s, %s" % (last, first)
+
 # Stores the scans of a single student on the same day
 class DayReport:
    def __init__(self):
@@ -156,7 +161,8 @@ for file in scanfile:
                     track = business_track
                   else:
                     track = tech_track
-                  times = track.times.setdefault(row[0], {})
+                  name = mangleName(row[0])
+                  times = track.times.setdefault(name, {})
                   times.setdefault(day, DayReport()).append(dt)
                   if day not in track.dates :
                     track.dates.append(day)
