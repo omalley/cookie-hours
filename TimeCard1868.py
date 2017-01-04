@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Time card applicaiton for Team 1868 - for work with Opticon scanner
 # in USB MSD mode (C04) and with fields programmed to be
 # name - text field - bar code is a text string
@@ -114,7 +116,7 @@ def buildTimesheet(workbook, track):
 # default parameters
 scanfile = list()
 outfile = 'timecard.xlsx'
-startdate = parseDate("04/01/2016")
+startdate = parseDate("09/01/2016")
 enddate = parseDate("12/31/2017")
 bagdate = parseDate("02/21/2017")
 min_separation = 120 # ignore events less than 2 minutes apart
