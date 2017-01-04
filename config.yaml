@@ -1,0 +1,22 @@
+# Start and end of the season
+startDate: 09/01/2016
+endDate: 05/01/2017
+
+# Date of bag and tag
+bagDate: 02/21/2017
+
+# The code for the business scanner
+businessScanner: 105059
+
+# The root directory for this years data files
+dataRoot: data/2017
+
+# The output filename
+output: timecard.xlsx
+
+# The list of tracks and the minimum hours in each
+hours:
+  Technical: 90.0
+  Business: 10.0
+  Post-Bag: 32.0
+

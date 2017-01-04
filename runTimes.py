@@ -6,15 +6,31 @@
 # serial - numerical - scanner seried number
 # time - time code in 24HR HH:MM:SS format
 # date - date code in MM/DD/YYYY format.
+
 # 9/12/2014 - Partha Srinivasan initial cut
-import sys
-import os.path
+
 import csv
 import datetime
+import glob
+import os.path
+import sys
 import xlsxwriter
+import yaml
+
+# ignore events less than 2 minutes apart
+min_separation = 120
 
 def parseDate(str):
   return datetime.datetime.strptime(str, '%m/%d/%Y').date()
+
+# read configuration from config.yaml file
+config = yaml.load(open("config.yaml", "r"))
+outfile = config['output']
+startdate = parseDate(config['startDate'])
+enddate = parseDate(config['endDate'])
+bagdate = parseDate(config['bagDate'])
+dataRoot = config['dataRoot']
+business_scanner = config['businessScanner']
 
 # extract the date from a timestamp with times before 4am counting as previous
 # day.
@@ -86,6 +102,13 @@ class Track:
     # map(week, hours)
     self.byWeek = {}
 
+tracks = {}
+for name, minHours in config['hours'].items():
+  tracks[name] = Track(name, minHours)
+tech_track = tracks['Technical']
+business_track = tracks['Business']
+post_bag_track = tracks['Post-Bag']
+
 def buildTimesheet(workbook, track):
   sheet = workbook.add_worksheet(track.name)
   row = 0
@@ -113,40 +136,12 @@ def buildTimesheet(workbook, track):
     sheet.write(row, 1, total,
                 green_total if total >= track.required_hours else black_total)
 
-# default parameters
-scanfile = list()
-outfile = 'timecard.xlsx'
-startdate = parseDate("09/01/2016")
-enddate = parseDate("12/31/2017")
-bagdate = parseDate("02/21/2017")
-min_separation = 120 # ignore events less than 2 minutes apart
-business_scanner = "105059"
-
-if len(sys.argv) > 1 :      # arguments passed
-    i = 1
-    while i < len(sys.argv):
-        if sys.argv[i] == '-o':
-            outfile = sys.argv[i+1]
-            i = i+2
-        elif sys.argv[i] == '-s':
-            startdate = parseDate(sys.argv[i+1])
-            i = i+2
-        elif sys.argv[i] == '-e':
-            enddate = parseDate(sys.argv[i+1])
-            i = i+2
-        else :
-            scanfile.append(sys.argv[i])
-            i = i+1
-
-tech_track = Track("Technical", 90.0)
-business_track = Track("Business", 10.0)
-post_bag_track = Track("Post-Bag", 32.0)
-
 # list(tuple(date, track, name, message))
 warnings = []
 
 #Now read in the scanner files - one file at a time
-for file in scanfile:
+for file in [y for x in os.walk(dataRoot)
+               for y in glob.glob(os.path.join(x[0], '*.TXT'))]:
     print ('Reading file', file)
     with open(file, 'rt') as inputfile :
         reader = csv.reader(inputfile, delimiter=',', quotechar='|')
@@ -169,7 +164,7 @@ for file in scanfile:
                   if day not in track.dates :
                     track.dates.append(day)
 
-for track in [tech_track, business_track, post_bag_track]:
+for track in tracks.values():
   track.dates.sort(reverse=True)
   for (name, entries) in track.times.items():
     for (date, report) in entries.items():
@@ -178,9 +173,7 @@ for track in [tech_track, business_track, post_bag_track]:
       track.byWeek[week] = track.byWeek.get(week, 0) + report.hours()
 
 warnings.sort()
-names = sorted(set(list(tech_track.times.keys()) + 
-                   list(business_track.times.keys()) +
-                   list(post_bag_track.times.keys())))
+names = sorted(set([name for track in tracks.values() for name in track.times.keys()]))
 if len(post_bag_track.dates) > 0:
   post_bag_days = (post_bag_track.dates[0] - bagdate).days
 else:
