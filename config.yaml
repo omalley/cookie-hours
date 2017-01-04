@@ -1,4 +1,5 @@
-# Start and end of the season
+# Start and end of the season.
+# The script ignores any events outside of this range.
 startDate: 09/01/2016
 endDate: 05/01/2017
 
@@ -6,7 +7,7 @@ endDate: 05/01/2017
 bagDate: 02/21/2017
 
 # The code for the business scanner
-businessScanner: 105059
+businessScanner: "105059"
 
 # The root directory for this years data files
 dataRoot: data/2017

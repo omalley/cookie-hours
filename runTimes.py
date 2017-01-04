@@ -1,11 +1,35 @@
 #!/usr/bin/env python3
 
-# Time card applicaiton for Team 1868 - for work with Opticon scanner
-# in USB MSD mode (C04) and with fields programmed to be
-# name - text field - bar code is a text string
-# serial - numerical - scanner seried number
-# time - time code in 24HR HH:MM:SS format
-# date - date code in MM/DD/YYYY format.
+# Time card applicaiton for FRC Team 1868
+
+# Configure the settings for the season in config.yaml.
+# I keep all of the data files in a directory structure
+# like data/<year>/<dump-date>/*.TXT, but that is just so
+# I can keep it straight. The script looks for all files
+# named *.TXT under the dataRoot directory.
+
+# When you run the script, it should look like:
+#   owen@laptop> ./runTimes.py
+#   Reading file data/2017/12-06/archi.TXT
+#   Reading file data/2017/12-06/curie.TXT
+#   Reading file data/2017/12-06/galileo.TXT
+#   Reading file data/2017/12-06/newton.TXT
+#   Total: 84 names with 8 technical, 5 business, and 0 post-bag days
+#   Generating report timecard.xlsx from: 2016-09-01 to: 2017-05-01
+
+# Upload the file to Google Sheets using "File/Import/Upload/Replace".
+# After you upload, run the "Cookies/titles" macro to set the title bars.
+
+# Works with Opticon scanner in USB MSD mode (C04)
+# and with fields programmed to be:
+#  * name - text field - bar code is a text string
+#  * serial - numerical - scanner seried number
+#  * time - time code in 24HR HH:MM:SS format
+#  * date - date code in MM/DD/YYYY format.
+
+# I've been running this script in Python 3.5 on a Mac using MacPorts.
+# You'll need to install python35, py35-pip, and py35-readline.
+# You'll need to pip install XlsxWriter, and PyYAML.
 
 # 9/12/2014 - Partha Srinivasan initial cut
 
@@ -182,7 +206,7 @@ else:
 print ("Total:", len(names), 'names with', len(tech_track.dates),
        'technical,', len(business_track.dates), 'business, and',
        len(post_bag_track.dates), 'post-bag days')
-print ("Generating report from:", startdate, "to: ", enddate)
+print ("Generating report", outfile, "from:", startdate, "to:", enddate)
 
 # Now prep the xlsx workbook
 workbook  = xlsxwriter.Workbook(outfile)
@@ -232,9 +256,7 @@ for name in names:
 
 # print out the breakdown of hours per week
 row += 5
-weeks = sorted(set(list(tech_track.byWeek.keys()) +
-                   list(business_track.byWeek.keys()) +
-                   list(post_bag_track.byWeek.keys())))
+weeks = sorted(set([week for track in tracks.values() for week in track.byWeek.keys()]))
 for week in weeks:
   row += 1
   total_sheet.write(row, 0, 'Week %d' % week)
