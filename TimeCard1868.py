@@ -114,9 +114,9 @@ def buildTimesheet(workbook, track):
 # default parameters
 scanfile = list()
 outfile = 'timecard.xlsx'
-startdate = parseDate("01/01/2016")
-enddate = parseDate("12/31/2016")
-bagdate = parseDate("02/23/2016")
+startdate = parseDate("04/01/2016")
+enddate = parseDate("12/31/2017")
+bagdate = parseDate("02/21/2017")
 min_separation = 120 # ignore events less than 2 minutes apart
 business_scanner = "105059"
 
