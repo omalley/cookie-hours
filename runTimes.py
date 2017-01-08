@@ -79,7 +79,8 @@ class DayReport:
    def __init__(self):
       self.scans = []
       self.ignored = []
-      self.warn = False
+      self.state = "normal"
+      self.manual = 0
 
    # after the data is loaded, fix up the data
    def fixUp(self, name, date, track):
@@ -96,16 +97,25 @@ class DayReport:
                           ("%d near duplicate events ignored" %
                            len(self.ignored))))
       if len(self.scans) % 2 != 0:
-         self.warn = len(self.scans) == 1
-         msg = ("Odd number of events: " + 
+         if len(self.scans) == 1:
+           self.state = "error"
+         msg = ("Odd number of events: " +
                 ', '.join(map(lambda d: d.strftime('%H:%M'), self.scans)))
-         warnings.append(('ERR' if self.warn else 'WARN',
+         warnings.append(('ERR' if self.state == "error" else 'WARN',
                           name, date, track, msg))
+
    def append(self, time):
       self.scans.append(time)
 
+   def manualUpdate(self, hours):
+      self.state = "manual"
+      self.manual = hours
+      self.scans = []
+
    def hours(self):
-     if len(self.scans) < 2:
+     if self.state == "manual":
+       return self.manual
+     elif len(self.scans) < 2:
        return 0.0
      elif len(self.scans) % 2 == 0:
        return calculateHours(self.scans)
@@ -155,7 +165,7 @@ def buildTimesheet(workbook, track):
         day = track.times[name][d]
         hours = day.hours()
         total += hours
-        sheet.write(row, col, hours, yellow_num if day.warn else format_num)
+        sheet.write(row, col, hours, time_formats[day.state])
     track.total[name] = total
     sheet.write(row, 1, total,
                 green_total if total >= track.required_hours else black_total)
@@ -188,6 +198,25 @@ for file in [y for x in os.walk(dataRoot)
                   if day not in track.dates :
                     track.dates.append(day)
 
+# Read the manual updates from <dataRoot>/manual.yaml
+# It should look like:
+# <track name>:
+#   <date>:
+#     <name>: <hours>
+# For each entry, overrides any checkins on that date
+manualUpdates = yaml.load(open(os.path.join(dataRoot, "manual.yaml"), "r"))
+for (trackName, dateList) in manualUpdates.items():
+  track = tracks[trackName]
+  if dateList:
+    for dateStr in dateList:
+      day = parseDate(dateStr)
+      for (rawName, hours) in dateList[dateStr].items():
+        name = mangleName(rawName)
+        times = track.times.setdefault(name, {})
+        times.setdefault(day, DayReport()).manualUpdate(hours)
+        if day not in track.dates :
+          track.dates.append(day)
+
 for track in tracks.values():
   track.dates.sort(reverse=True)
   for (name, entries) in track.times.items():
@@ -210,15 +239,22 @@ print ("Generating report", outfile, "from:", startdate, "to:", enddate)
 
 # Now prep the xlsx workbook
 workbook  = xlsxwriter.Workbook(outfile)
+
+def makeColorFormat(color):
+  result = workbook.add_format({'num_format':'0.00'})
+  if color != "white":
+    result.set_bg_color(color)
+  return result
+
 format_date = workbook.add_format({'num_format': 'mm/dd/yy'})
-green_total = workbook.add_format({'num_format':'0.00'})
+green_total = makeColorFormat('#00cc66')
 green_total.set_bold()
-green_total.set_bg_color('#00cc66')
-black_total = workbook.add_format({'num_format':'0.00'})
+black_total = makeColorFormat("white")
 black_total.set_bold()
-yellow_num = workbook.add_format({'num_format':'0.00'})
-yellow_num.set_bg_color('yellow')
-format_num = workbook.add_format({'num_format':'0.00'})
+
+time_formats = {"normal": makeColorFormat("white"),
+                "error": makeColorFormat("yellow"),
+                "manual": makeColorFormat("#b7fcff")}
 
 buildTimesheet(workbook, tech_track)
 buildTimesheet(workbook, business_track)
