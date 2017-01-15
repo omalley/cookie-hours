@@ -86,17 +86,17 @@ time_formats = {"normal": makeColorFormat("white"),
                 "manual": makeColorFormat("#b7fcff")}
 
 names = timecards.names()
+total_sheet = workbook.add_worksheet('Totals')
 buildTimesheet(workbook, names, timecards.tech_track)
 buildTimesheet(workbook, names, timecards.business_track)
 buildTimesheet(workbook, names, timecards.post_bag_track)
 
-total_sheet = workbook.add_worksheet('Totals')
 total_sheet.write(0, 0, 'Name')
 total_sheet.set_column(0, 0, 20)
 total_sheet.write(0, 1, 'Technical Hours')
 total_sheet.set_column(1, 5, 15)
 total_sheet.write(0, 2, 'Business Hours')
-total_sheet.write(0, 3, 'Total Hours')
+total_sheet.write(0, 3, 'Total Pre-Bag')
 total_sheet.write(0, 4, 'Post-Bag Hours')
 total_sheet.write(0, 5, 'Post-Bag/Week')
 row = 0
@@ -143,6 +143,7 @@ for col in range(1, 5):
                                          row - len(weeks) + 1,
                                          columnNames[col], row),
                     black_total)
+
 
 warn_sheet = workbook.add_worksheet('Warnings')
 warn_sheet.write(0, 0, 'Level')
