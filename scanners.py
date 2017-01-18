@@ -46,7 +46,7 @@ def calculateHours(times):
 
 # rearrange the name so that it sorts by last name
 def mangleName(name):
-  [first, last] = name.rsplit(None, 1)
+  [first, last] = name.split(None, 1)
   return "%s, %s" % (last, first)
 
 # Stores the scans of a single student on the same day
