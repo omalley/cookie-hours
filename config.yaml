@@ -19,5 +19,5 @@ output: timecard.xlsx
 hours:
   Technical: 90.0
   Business: 10.0
-  Post-Bag: 32.0
+  Post-Bag: 16.0
 
