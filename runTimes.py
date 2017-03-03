@@ -100,23 +100,30 @@ total_sheet.write(0, 3, 'Total Pre-Bag')
 total_sheet.write(0, 4, 'Post-Bag Hours')
 total_sheet.write(0, 5, 'Post-Bag/Week')
 row = 0
+business_required = timecards.business_track.required_hours
+prebag_required = (timecards.tech_track.required_hours +
+                   timecards.business_track.required_hours)
+postbag_required = timecards.post_bag_track.required_hours
 for name in timecards.names():
   row += 1
   total_sheet.write(row, 0, name)
   tech_total = timecards.tech_track.total.get(name, 0.0)
   business_total = timecards.business_track.total.get(name, 0.0)
-  overall_format = (green_total if tech_total + business_total >= 100
+  overall_format = (green_total
+                       if tech_total + business_total >= prebag_required
                     else black_total)
   total_sheet.write(row, 1, tech_total, overall_format)
   total_sheet.write(row, 2, business_total,
-                    green_total if business_total >= 10 else black_total)
+                    green_total if business_total >= business_required
+                    else black_total)
   total_sheet.write(row, 3, tech_total + business_total, overall_format)
   post_bag_total = timecards.post_bag_track.total.get(name, 0.0)
   if timecards.post_bag_days > 0:
     post_bag_week = post_bag_total * 7 / timecards.post_bag_days
   else:
     post_bag_week = 0
-  post_bag_style = green_total if post_bag_total >= 32 else black_total
+  post_bag_style = (green_total if post_bag_total >= postbag_required
+                    else black_total)
   total_sheet.write(row, 4, post_bag_total, post_bag_style)
   total_sheet.write(row, 5, post_bag_week, post_bag_style)
 
