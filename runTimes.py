@@ -98,7 +98,7 @@ total_sheet.set_column(1, 5, 15)
 total_sheet.write(0, 2, 'Business Hours')
 total_sheet.write(0, 3, 'Total Pre-Bag')
 total_sheet.write(0, 4, 'Post-Bag Hours')
-total_sheet.write(0, 5, 'Post-Bag/Week')
+total_sheet.write(0, 5, 'Total Hours')
 row = 0
 business_required = timecards.business_track.required_hours
 prebag_required = (timecards.tech_track.required_hours +
@@ -118,14 +118,12 @@ for name in timecards.names():
                     else black_total)
   total_sheet.write(row, 3, tech_total + business_total, overall_format)
   post_bag_total = timecards.post_bag_track.total.get(name, 0.0)
-  if timecards.post_bag_days > 0:
-    post_bag_week = post_bag_total * 7 / timecards.post_bag_days
-  else:
-    post_bag_week = 0
   post_bag_style = (green_total if post_bag_total >= postbag_required
                     else black_total)
   total_sheet.write(row, 4, post_bag_total, post_bag_style)
-  total_sheet.write(row, 5, post_bag_week, post_bag_style)
+  total_sheet.write(row, 5,
+                    post_bag_total + business_total + tech_total,
+                    post_bag_style)
 
 # print out the breakdown of hours per week
 row += 5
@@ -141,10 +139,11 @@ for week in weeks:
   total_sheet.write(row, 2, business, black_total)
   total_sheet.write(row, 3, tech + business, black_total)
   total_sheet.write(row, 4, post_bag, black_total)
+  total_sheet.write(row, 5, tech + business + post_bag, black_total)
 row += 1
 total_sheet.write(row, 0, 'Total')
-columnNames = "ABCDE"
-for col in range(1, 5):
+columnNames = "ABCDEF"
+for col in range(1, 6):
   total_sheet.write(row, col,
                     '=SUM(%s%d:%s%d)' % (columnNames[col],
                                          row - len(weeks) + 1,
