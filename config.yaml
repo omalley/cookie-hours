@@ -1,16 +1,16 @@
 # Start and end of the season.
 # The script ignores any events outside of this range.
-startDate: 01/01/2017
-endDate: 05/01/2017
+startDate: 09/01/2017
+endDate: 05/01/2018
 
 # Date of bag and tag
-bagDate: 02/21/2017
+bagDate: 02/20/2018
 
 # The code for the business scanner
 businessScanner: "105059"
 
 # The root directory for this years data files
-dataRoot: data/2017
+dataRoot: data/2018
 
 # The output filename
 output: timecard.xlsx
