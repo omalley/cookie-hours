@@ -3,6 +3,9 @@
 startDate: 09/01/2017
 endDate: 05/01/2018
 
+# kickoff date
+kickOff: 01/06/2018
+
 # Date of bag and tag
 bagDate: 02/20/2018
 
@@ -17,6 +20,7 @@ output: timecard.xlsx
 
 # The list of tracks and the minimum hours in each
 hours:
+  Pre-season: 10.0
   Technical: 90.0
   Business: 10.0
   Post-Bag: 16.0

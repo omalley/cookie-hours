@@ -139,12 +139,14 @@ class Timecards:
     self.tracks = {}
     for name, minHours in config['hours'].items():
       self.tracks[name] = Track(name, minHours)
+    self.preseason_track = self.tracks['Pre-season']
     self.tech_track = self.tracks['Technical']
     self.business_track = self.tracks['Business']
     self.post_bag_track = self.tracks['Post-Bag']
     self.warnings = []
     self.start_date = parseDate(config['startDate'])
     self.end_date = parseDate(config['endDate'])
+    self.kick_date = parseDate(config['kickOff'])
     self.bag_date = parseDate(config['bagDate'])
     self.data_root = config['dataRoot']
     self.mangle_names = config.get('mangleNames', True)
@@ -169,7 +171,9 @@ class Timecards:
             dt = parseDateTime(row[3], row[2])
             day = adjustDate(dt)
             if self.start_date <= day and day <= self.end_date:
-              if day > self.bag_date:
+              if day < self.kick_date:
+                track = self.preseason_track
+              elif day > self.bag_date:
                 track = self.post_bag_track
               elif row[1] == self.business_scanner:
                 track = self.business_track
@@ -222,6 +226,7 @@ class Timecards:
     print ("Dates: start:", self.start_date, ", end:", self.end_date,
            ", bag:", self.bag_date)
     print ("Total of", len(self.names()), 'names with',
+           len(self.preseason_track.dates), 'pre-season,',
            len(self.tech_track.dates), 'technical,',
            len(self.business_track.dates), 'business, and',
            self.post_bag_days, 'post-bag days')

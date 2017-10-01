@@ -89,16 +89,18 @@ names = timecards.names()
 total_sheet = workbook.add_worksheet('Totals')
 buildTimesheet(workbook, names, timecards.tech_track)
 buildTimesheet(workbook, names, timecards.business_track)
+buildTimesheet(workbook, names, timecards.preseason_track)
 buildTimesheet(workbook, names, timecards.post_bag_track)
 
 total_sheet.write(0, 0, 'Name')
 total_sheet.set_column(0, 0, 20)
 total_sheet.write(0, 1, 'Technical Hours')
-total_sheet.set_column(1, 5, 15)
+total_sheet.set_column(1, 6, 15)
 total_sheet.write(0, 2, 'Business Hours')
 total_sheet.write(0, 3, 'Total Pre-Bag')
-total_sheet.write(0, 4, 'Post-Bag Hours')
-total_sheet.write(0, 5, 'Total Hours')
+total_sheet.write(0, 4, 'Pre-Season Hours')
+total_sheet.write(0, 5, 'Post-Bag Hours')
+total_sheet.write(0, 6, 'Total Hours')
 row = 0
 business_required = timecards.business_track.required_hours
 prebag_required = (timecards.tech_track.required_hours +
@@ -117,13 +119,15 @@ for name in timecards.names():
                     green_total if business_total >= business_required
                     else black_total)
   total_sheet.write(row, 3, tech_total + business_total, overall_format)
+  preseason_total = timecards.preseason_track.total.get(name, 0.0)
+  total_sheet.write(row, 4, preseason_total, overall_format)
   post_bag_total = timecards.post_bag_track.total.get(name, 0.0)
   post_bag_style = (green_total if post_bag_total >= postbag_required
                     else black_total)
-  total_sheet.write(row, 4, post_bag_total, post_bag_style)
-  total_sheet.write(row, 5,
-                    post_bag_total + business_total + tech_total,
-                    post_bag_style)
+  total_sheet.write(row, 5, post_bag_total, post_bag_style)
+  total_sheet.write(row, 6,
+                    preseason_total + post_bag_total + business_total
+                      + tech_total, post_bag_style)
 
 # print out the breakdown of hours per week
 row += 5
@@ -134,16 +138,19 @@ for week in weeks:
   total_sheet.write(row, 0, 'Week %d' % week)
   tech = timecards.tech_track.byWeek.get(week, 0)
   business = timecards.business_track.byWeek.get(week, 0)
+  preseason = timecards.preseason_track.byWeek.get(week, 0)
   post_bag = timecards.post_bag_track.byWeek.get(week, 0)
   total_sheet.write(row, 1, tech, black_total)
   total_sheet.write(row, 2, business, black_total)
   total_sheet.write(row, 3, tech + business, black_total)
-  total_sheet.write(row, 4, post_bag, black_total)
-  total_sheet.write(row, 5, tech + business + post_bag, black_total)
+  total_sheet.write(row, 4, preseason, black_total)
+  total_sheet.write(row, 5, post_bag, black_total)
+  total_sheet.write(row, 6, tech + business + preseason + post_bag,
+                    black_total)
 row += 1
 total_sheet.write(row, 0, 'Total')
-columnNames = "ABCDEF"
-for col in range(1, 6):
+columnNames = "ABCDEFG"
+for col in range(1, 7):
   total_sheet.write(row, col,
                     '=SUM(%s%d:%s%d)' % (columnNames[col],
                                          row - len(weeks) + 1,
