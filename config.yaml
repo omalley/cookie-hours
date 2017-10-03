@@ -18,10 +18,17 @@ dataRoot: data/2018
 # The output filename
 output: timecard.xlsx
 
-# The list of tracks and the minimum hours in each
-hours:
-  Pre-season: 10.0
-  Technical: 90.0
-  Business: 10.0
-  Post-Bag: 16.0
-
+tracks:
+  Pre-season:
+    hours: 1000.0
+    training:
+      Mech 101:
+        - 09/30/2017 9:15 12:30
+      Prog 101:
+        - 10/01/2017 14:45 17:00
+  Technical:
+    hours: 90.0
+  Business:
+    hours: 10.0
+  Post-Bag:
+    hours: 16.0

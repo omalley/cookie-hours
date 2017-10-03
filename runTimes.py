@@ -38,6 +38,10 @@ def buildTimesheet(workbook, names, track):
   sheet.set_column(0, 0, 20)
   sheet.write(row, 1, 'Total')
   col = 1
+  trainingNames = sorted(track.trainingNames())
+  for eventName in trainingNames:
+    col += 1
+    sheet.write(row, col, eventName)
   for d in track.dates:
     col += 1
     sheet.write(row, col, d, format_date)
@@ -47,10 +51,16 @@ def buildTimesheet(workbook, names, track):
     row = row + 1
     col = 1
     sheet.write(row, 0, name)
+    for eventName in trainingNames:
+      col += 1
+      hours = track.trainingHours(name, eventName)
+      if hours != 0:
+        sheet.write(row, col, hours, time_formats["normal"])
+        total += hours
     for d in track.dates:
       col += 1
-      if name in track.times and d in track.times[name]:
-        day = track.times[name][d]
+      if name in track.people and d in track.people[name].times:
+        day = track.people[name].times[d]
         hours = day.hours()
         total += hours
         sheet.write(row, col, hours, time_formats[day.state])
