@@ -304,7 +304,7 @@ class Timecards:
       for (name, person) in track.people.items():
         for (date, report) in person.times.items():
           report.fixUp(name, date, track.name, track.training, self.warnings)
-          week = int(date.strftime('%U'))
+          week = (date - self.kick_date).days // 7
           track.byWeek[week] = track.byWeek.get(week, 0) + report.hours() + \
                                report.trainingHours()
 
