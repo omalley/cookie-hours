@@ -188,9 +188,11 @@ class PersonInTrack:
     return result
 
 class Track:
-  def __init__(self, name, required_hours, trainings):
+  def __init__(self, name, required_hours, warn_hours, goal_hours, trainings):
     self.name = name
     self.required_hours = required_hours
+    self.goal_hours = goal_hours
+    self.warn_hours = warn_hours
     # map(name, PersonInTrack)
     self.people = {}
     # list(date)
@@ -218,11 +220,24 @@ class Track:
       return self.people[personName].eventHours(eventName)
     return 0
 
+  def getState(self, hours):
+    if hours >= self.required_hours:
+      return "done"
+    elif hours >= self.goal_hours:
+      return "goal"
+    elif hours >= self.warn_hours:
+      return "normal"
+    else:
+      return "warn"
+    
 class Timecards:
   def __init__(self, config):
     self.tracks = {}
     for name, trackConfig in config['tracks'].items():
-      self.tracks[name] = Track(name, trackConfig['hours'],
+      self.tracks[name] = Track(name,
+                                trackConfig.get('required', 1000),
+                                trackConfig.get('warn', 0),
+                                trackConfig.get('goal', 0),
                                 trackConfig.get('training', {}))
     self.preseason_track = self.tracks['Pre-season']
     self.tech_track = self.tracks['Technical']

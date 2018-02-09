@@ -20,7 +20,6 @@ output: timecard.xlsx
 
 tracks:
   Pre-season:
-    hours: 1000.0
     training:
       Biz 101:
         - 11/03/2017 19:00 20:00
@@ -53,8 +52,14 @@ tracks:
       Prog 301:
         - 11/12/2017 14:15 16:30
   Technical:
-    hours: 90.0
+    warn: 45
+    goal: 72
+    required: 90
   Business:
-    hours: 10.0
+    warn: 5
+    goal: 8
+    required: 10
   Post-Bag:
-    hours: 16.0
+    warn: 0
+    goal: 1
+    required: 16

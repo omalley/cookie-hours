@@ -65,8 +65,7 @@ def buildTimesheet(workbook, names, track):
         total += hours
         sheet.write(row, col, hours, time_formats[day.state])
     track.total[name] = total
-    sheet.write(row, 1, total,
-                green_total if total >= track.required_hours else black_total)
+    sheet.write(row, 1, total, total_formats[track.getState(total)])
 
 # read configuration from config.yaml file
 config = yaml.load(open("config.yaml", "r"))
@@ -79,21 +78,35 @@ print ("Generating report", outfile)
 # Now prep the xlsx workbook
 workbook  = xlsxwriter.Workbook(outfile)
 
-def makeColorFormat(color):
+def makeColorFormat(color, isBold):
   result = workbook.add_format({'num_format':'0.00'})
   if color != "white":
     result.set_bg_color(color)
+  if isBold:
+    result.set_bold()
   return result
 
-format_date = workbook.add_format({'num_format': 'mm/dd/yy'})
-green_total = makeColorFormat('#00cc66')
-green_total.set_bold()
-black_total = makeColorFormat("white")
-black_total.set_bold()
+def minState(left, right):
+  if left == "warn" or right == "warn":
+    return "warn"
+  elif left == "goal" or right == "goal":
+    return "goal"
+  elif left == "normal" or right == "normal":
+    return "normal"
+  else:
+    return "done"
 
-time_formats = {"normal": makeColorFormat("white"),
-                "error": makeColorFormat("yellow"),
-                "manual": makeColorFormat("#b7fcff")}
+format_date = workbook.add_format({'num_format': 'mm/dd/yy'})
+black_total = makeColorFormat("white", True)
+
+total_formats = {"warn": makeColorFormat("#ffcccc", True),
+                 "normal": black_total,
+                 "goal": makeColorFormat("#80ff00", True),
+                 "done": makeColorFormat("#00cc66", True)}
+
+time_formats = {"normal": makeColorFormat("white", False),
+                "error": makeColorFormat("yellow", False),
+                "manual": makeColorFormat("#b7fcff", False)}
 
 names = timecards.names()
 total_sheet = workbook.add_worksheet('Totals')
@@ -112,29 +125,27 @@ total_sheet.write(0, 4, 'Post-Bag Hours')
 total_sheet.write(0, 5, 'Total Hours')
 total_sheet.write(0, 6, 'Pre-Season Hours')
 row = 0
-tech_required = timecards.tech_track.required_hours
-business_required = timecards.business_track.required_hours
-postbag_required = timecards.post_bag_track.required_hours
 for name in timecards.names():
   row += 1
   total_sheet.write(row, 0, name)
   tech_total = timecards.tech_track.total.get(name, 0.0)
+  tech_state = timecards.tech_track.getState(tech_total)
   business_total = timecards.business_track.total.get(name, 0.0)
-  total_sheet.write(row, 1, tech_total,
-                    green_total if tech_total >= tech_required else black_total)
-  total_sheet.write(row, 2, business_total,
-                    green_total if business_total >= business_required
-                    else black_total)
+  business_state = timecards.business_track.getState(business_total)
+  prebag_state = minState(tech_state, business_state)
+  
+  total_sheet.write(row, 1, tech_total, total_formats[tech_state])
+  total_sheet.write(row, 2, business_total, total_formats[business_state])
   total_sheet.write(row, 3, tech_total + business_total,
-                    green_total if tech_total >= tech_required and
-                    business_total >= business_required else black_total)
+                    total_formats[prebag_state])
+
   post_bag_total = timecards.post_bag_track.total.get(name, 0.0)
-  post_bag_style = (green_total if post_bag_total >= postbag_required
-                    else black_total)
-  total_sheet.write(row, 4, post_bag_total, post_bag_style)
+  post_bag_state = timecards.post_bag_track.getState(post_bag_total)
+  total_sheet.write(row, 4, post_bag_total, total_formats[post_bag_state])
+  
   total_sheet.write(row, 5,
-                    post_bag_total + business_total
-                      + tech_total, post_bag_style)
+                    post_bag_total + business_total + tech_total,
+                    total_formats[minState(prebag_state, post_bag_state)])
   preseason_total = timecards.preseason_track.total.get(name, 0.0)
   total_sheet.write(row, 6, preseason_total, black_total)
 
