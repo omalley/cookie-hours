@@ -86,13 +86,26 @@ def makeColorFormat(color, isBold):
     result.set_bold()
   return result
 
+def getPrebagState(hours):
+  if hours >= (timecards.tech_track.required_hours +
+               timecards.business_track.required_hours):
+    return "done"
+  elif hours >= (timecards.tech_track.goal_hours +
+                 timecards.business_track.goal_hours):
+    return "goal"
+  elif hours >= (timecards.tech_track.warn_hours +
+                 timecards.business_track.warn_hours):
+    return "normal"
+  else:
+    return "warn"
+  
 def minState(left, right):
   if left == "warn" or right == "warn":
     return "warn"
-  elif left == "goal" or right == "goal":
-    return "goal"
   elif left == "normal" or right == "normal":
     return "normal"
+  elif left == "goal" or right == "goal":
+    return "goal"
   else:
     return "done"
 
@@ -129,12 +142,11 @@ for name in timecards.names():
   row += 1
   total_sheet.write(row, 0, name)
   tech_total = timecards.tech_track.total.get(name, 0.0)
-  tech_state = timecards.tech_track.getState(tech_total)
   business_total = timecards.business_track.total.get(name, 0.0)
   business_state = timecards.business_track.getState(business_total)
-  prebag_state = minState(tech_state, business_state)
+  prebag_state = getPrebagState(tech_total + business_total)
   
-  total_sheet.write(row, 1, tech_total, total_formats[tech_state])
+  total_sheet.write(row, 1, tech_total, black_total)
   total_sheet.write(row, 2, business_total, total_formats[business_state])
   total_sheet.write(row, 3, tech_total + business_total,
                     total_formats[prebag_state])
@@ -142,12 +154,32 @@ for name in timecards.names():
   post_bag_total = timecards.post_bag_track.total.get(name, 0.0)
   post_bag_state = timecards.post_bag_track.getState(post_bag_total)
   total_sheet.write(row, 4, post_bag_total, total_formats[post_bag_state])
+  total_state = minState(minState(business_state, prebag_state),
+                         post_bag_state)
   
   total_sheet.write(row, 5,
                     post_bag_total + business_total + tech_total,
-                    total_formats[minState(prebag_state, post_bag_state)])
+                    total_formats[total_state])
   preseason_total = timecards.preseason_track.total.get(name, 0.0)
   total_sheet.write(row, 6, preseason_total, black_total)
+
+total_sheet.set_column(8, 0, 30)
+total_sheet.write(0, 8, "Key:")
+total_sheet.write(1, 8, "done", total_formats["done"])
+total_sheet.write(2, 8, "ahead", total_formats["goal"])
+total_sheet.write(3, 8, "keep going", total_formats["normal"])
+total_sheet.write(4, 8, "behind", total_formats["warn"])
+
+total_sheet.write(6, 8, "Requirements:")
+total_sheet.write(7, 8,
+                  "Business: %d" % timecards.business_track.required_hours)
+total_sheet.write(8, 8,
+                  "Pre-Bag (actually 2/28): %d" %
+                    (timecards.business_track.required_hours +
+                     timecards.tech_track.required_hours))
+total_sheet.write(9, 8,
+                  "Post-Bag: %d" % timecards.post_bag_track.required_hours)
+total_sheet.write(10, 8, "Total: Business, Pre-Bag, and Post-Bag")
 
 # print out the breakdown of hours per week
 row += 5
