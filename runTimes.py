@@ -163,7 +163,7 @@ for name in timecards.names():
   preseason_total = timecards.preseason_track.total.get(name, 0.0)
   total_sheet.write(row, 6, preseason_total, black_total)
 
-total_sheet.set_column(8, 0, 30)
+total_sheet.set_column(8, 8, 35)
 total_sheet.write(0, 8, "Key:")
 total_sheet.write(1, 8, "done", total_formats["done"])
 total_sheet.write(2, 8, "ahead", total_formats["goal"])
