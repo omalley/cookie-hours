@@ -7,7 +7,7 @@ endDate: 05/01/2018
 kickOff: 01/06/2018
 
 # Date of bag and tag
-bagDate: 02/20/2018
+bagDate: 02/28/2018
 
 # The code for the business scanner
 businessScanner: "105059"
@@ -52,12 +52,12 @@ tracks:
       Prog 301:
         - 11/12/2017 14:15 16:30
   Technical:
-    warn: 45
-    goal: 72
+    warn: 63
+    goal: 81
     required: 90
   Business:
-    warn: 5
-    goal: 8
+    warn: 7
+    goal: 9
     required: 10
   Post-Bag:
     warn: 0
