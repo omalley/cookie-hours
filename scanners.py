@@ -55,8 +55,13 @@ def calculateHours(times):
 
 # rearrange the name so that it sorts by last name
 def mangleName(name):
-  [first, last] = name.split(None, 1)
-  return "%s, %s" % (last, first)
+  name = name.rstrip('.')
+  parts = name.split(None, 1)
+  if len(parts) < 2:
+    print("Warning: Short name", name)
+    return name
+  else:
+    return "%s, %s" % (parts[1], parts[0])
 
 # training classes, which are tracked separately from their track
 class Event:
