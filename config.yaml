@@ -52,12 +52,12 @@ tracks:
       Prog 301:
         - 11/12/2017 14:15 16:30
   Technical:
-    warn: 63
-    goal: 81
+    warn: 72
+    goal: 85.5
     required: 90
   Business:
-    warn: 7
-    goal: 9
+    warn: 8
+    goal: 9.5
     required: 10
   Post-Bag:
     warn: 0
