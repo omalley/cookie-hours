@@ -61,5 +61,5 @@ tracks:
     required: 10
   Post-Bag:
     warn: 0
-    goal: 1
+    goal: 12
     required: 16
